@@ -91,9 +91,9 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *layout, obs_source_t *source_)
 	const char *speakers = config_get_string(main->Config(), "Audio",
 			"ChannelSetup");
 
-	if (strcmp(speakers, "Mono") == 0)
+	/*if (strcmp(speakers, "Mono") == 0)
 		panning->setEnabled(false);
-	else
+	else*/
 		panning->setEnabled(true);
 
 	float pan = obs_source_get_panning_value(source) * 100.0f;
