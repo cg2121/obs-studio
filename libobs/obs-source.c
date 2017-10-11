@@ -2540,31 +2540,63 @@ static void process_audio_panning(struct obs_source *source, uint32_t frames,
 		float pan, enum obs_panning_type type)
 {
 	float **data = (float**)source->audio_data.data;
+	uint8_t output_channels = audio_output_get_channels(obs->audio.audio);
 
-	switch(type) {
-	case OBS_PANNING_TYPE_SINE_LAW:
-		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] *
-				sinf((1.0f - pan) * (M_PI/2.0f));
-			data[1][frame] = data[1][frame] *
-				sinf(pan * (M_PI/2.0f));
+	//if (output_channels == 1) {
+		switch (type) {
+		case OBS_PANNING_TYPE_SINE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				for (uint8_t channel = 0; channel < output_channels; channel++) {
+					data[channel][frame] = data[channel][frame] *
+						sinf((1.0f - pan) * (M_PI / 2.0f));
+				}
+			}
+			break;
+		case OBS_PANNING_TYPE_SQUARE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				for (uint8_t channel = 0; channel < output_channels; channel++) {
+				data[channel][frame] = data[channel][frame] * sqrtf(1.0f - pan);
+				}
+			}
+			break;
+		case OBS_PANNING_TYPE_LINEAR:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				for (uint8_t channel = 0; channel < output_channels; channel++) {
+				data[channel][frame] = data[channel][frame] * (1.0f - pan);
+				}
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	case OBS_PANNING_TYPE_SQUARE_LAW:
-		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] * sqrtf(1.0f - pan);
-			data[1][frame] = data[1][frame] * sqrtf(pan);
+	/*}
+	else {
+		switch (type) {
+		case OBS_PANNING_TYPE_SINE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] *
+					sinf((1.0f - pan) * (M_PI / 2.0f));
+				data[1][frame] = data[1][frame] *
+					sinf(pan * (M_PI / 2.0f));
+			}
+			break;
+		case OBS_PANNING_TYPE_SQUARE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] * sqrtf(1.0f - pan);
+				data[1][frame] = data[1][frame] * sqrtf(pan);
+			}
+			break;
+		case OBS_PANNING_TYPE_LINEAR:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] * (1.0f - pan);
+				data[1][frame] = data[1][frame] * pan;
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	case OBS_PANNING_TYPE_LINEAR:
-		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] * (1.0f - pan);
-			data[1][frame] = data[1][frame] * pan;
-		}
-		break;
-	default:
-		break;
-	}
+	}*/
+	
 }
 
 /* resamples/remixes new audio to the designated main audio output format */
