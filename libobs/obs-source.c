@@ -2532,7 +2532,8 @@ static void downmix_to_mono_planar(struct obs_source *source, uint32_t frames)
 
 	for (size_t channel = 1; channel < channels; channel++) {
 		for (uint32_t frame = 0; frame < frames; frame++)
-			data[channel][frame] = data[0][frame];
+			//data[channel][frame] = data[0][frame];
+			data[channel][frame] = 0.0f;
 	}
 }
 
@@ -2540,13 +2541,13 @@ static void process_audio_panning(struct obs_source *source, uint32_t frames,
 		float pan, enum obs_panning_type type)
 {
 	float **data = (float**)source->audio_data.data;
-	uint8_t output_channels = audio_output_get_channels(obs->audio.audio);
+	size_t output_channels = audio_output_get_channels(obs->audio.audio);
 
-	//if (output_channels == 1) {
+
 		switch (type) {
 		case OBS_PANNING_TYPE_SINE_LAW:
 			for (uint32_t frame = 0; frame < frames; frame++) {
-				for (uint8_t channel = 0; channel < output_channels; channel++) {
+				for (size_t channel = 0; channel < output_channels; channel++) {
 					data[channel][frame] = data[channel][frame] *
 						sinf((1.0f - pan) * (M_PI / 2.0f));
 				}
@@ -2554,14 +2555,14 @@ static void process_audio_panning(struct obs_source *source, uint32_t frames,
 			break;
 		case OBS_PANNING_TYPE_SQUARE_LAW:
 			for (uint32_t frame = 0; frame < frames; frame++) {
-				for (uint8_t channel = 0; channel < output_channels; channel++) {
+				for (size_t channel = 0; channel < output_channels; channel++) {
 				data[channel][frame] = data[channel][frame] * sqrtf(1.0f - pan);
 				}
 			}
 			break;
 		case OBS_PANNING_TYPE_LINEAR:
 			for (uint32_t frame = 0; frame < frames; frame++) {
-				for (uint8_t channel = 0; channel < output_channels; channel++) {
+				for (size_t channel = 0; channel < output_channels; channel++) {
 				data[channel][frame] = data[channel][frame] * (1.0f - pan);
 				}
 			}
