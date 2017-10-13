@@ -96,7 +96,7 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *layout, obs_source_t *source_)
 	else*/
 		panning->setEnabled(true);
 
-	float pan = obs_source_get_panning_value(source) * 100.0f;
+	float pan[current_channel] = obs_source_get_panning_value(source, current_channel) * 100.0f;
 	panning->setValue((int)pan);
 
 	int64_t cur_sync = obs_source_get_sync_offset(source);
@@ -290,11 +290,11 @@ void OBSAdvAudioCtrl::downmixMonoChanged(bool checked)
 	}
 }
 
-void OBSAdvAudioCtrl::panningChanged(int val)
+void OBSAdvAudioCtrl::panningChanged(int val, size_t channel)
 {
-	float pan = (float)val / 100.0f;
+	float pan_amount = (float)val / 100.0f;
 
-	obs_source_set_panning_value(source, pan);
+	obs_source_set_panning_value(source, channel, pan_amount);
 }
 
 void OBSAdvAudioCtrl::syncOffsetChanged(int milliseconds)
