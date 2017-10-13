@@ -141,7 +141,19 @@ bool obs_source_init(struct obs_source *source)
 	source->user_volume = 1.0f;
 	source->volume = 1.0f;
 	source->sync_offset = 0;
-	source->pan = 0.5f;
+	for (uint8_t i = 0; i < MAX_AUDIO_CHANNELS; i++)
+	{
+		/* All even channels panned to the left by default. */
+		if (i % 2 == 0)
+		{
+			source->pan[i] = 0.0f;
+		}
+		/* All odd channels panned to the right by default. */
+		else
+		{
+			source->pan[i] = 1.0f;
+		}
+	}
 	pthread_mutex_init_value(&source->filter_mutex);
 	pthread_mutex_init_value(&source->async_mutex);
 	pthread_mutex_init_value(&source->audio_mutex);
@@ -2515,7 +2527,8 @@ static void copy_audio_data(obs_source_t *source,
 		source->audio_storage_size = size;
 }
 
-/* TODO: SSE optimization */
+/* TODO: SSE optimization.
+   Use MODULUS (%) to determine the remainder to avoid going over.*/
 static void downmix_to_mono_planar(struct obs_source *source, uint32_t frames)
 {
 	size_t channels = audio_output_get_channels(obs->audio.audio);
@@ -4142,15 +4155,15 @@ obs_data_t *obs_source_get_private_settings(obs_source_t *source)
 	return source->private_settings;
 }
 
-void obs_source_set_panning_value(obs_source_t *source, float pan)
+void obs_source_set_panning_value(obs_source_t *source, size_t channel, float pan)
 {
 	if (!obs_source_valid(source, "obs_source_set_panning_value"))
 		return;
 
-	source->pan = pan;
+	source->pan[channel] = pan;
 }
 
-float obs_source_get_panning_value(const obs_source_t *source)
+float obs_source_get_panning_value(const obs_source_t *source, size_t channel)
 {
 	return obs_source_valid(source, "obs_source_get_panning_value") ?
 		source->pan : 0.5f;
