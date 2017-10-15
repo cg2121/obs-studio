@@ -25,7 +25,7 @@
 #include "util/platform.h"
 #include "callback/calldata.h"
 #include "graphics/matrix3.h"
-#include "graphics/vec3.h"
+#include "graphics/vec4.h"
 
 #include "obs.h"
 #include "obs-internal.h"
@@ -141,7 +141,19 @@ bool obs_source_init(struct obs_source *source)
 	source->user_volume = 1.0f;
 	source->volume = 1.0f;
 	source->sync_offset = 0;
-	source->pan = 0.5f;
+	for (uint8_t i = 0; i < MAX_AUDIO_CHANNELS; i++)
+	{
+		/* All even channels panned to the left by default. */
+		if (i % 2 == 0)
+		{
+			source->pan[i] = 0.0f;
+		}
+		/* All odd channels panned to the right by default. */
+		else
+		{
+			source->pan[i] = 1.0f;
+		}
+	}
 	pthread_mutex_init_value(&source->filter_mutex);
 	pthread_mutex_init_value(&source->async_mutex);
 	pthread_mutex_init_value(&source->audio_mutex);
@@ -2515,56 +2527,257 @@ static void copy_audio_data(obs_source_t *source,
 		source->audio_storage_size = size;
 }
 
-/* TODO: SSE optimization */
+/* Downmix to Mono function. */
 static void downmix_to_mono_planar(struct obs_source *source, uint32_t frames)
 {
 	size_t channels = audio_output_get_channels(obs->audio.audio);
 	const float channels_i = 1.0f / (float)channels;
 	float **data = (float**)source->audio_data.data;
 
-	for (size_t channel = 1; channel < channels; channel++) {
-		for (uint32_t frame = 0; frame < frames; frame++)
-			data[0][frame] += data[channel][frame];
+	/* Should we add SSE management Intrinsics to the OBS core? */
+	/* Preserve SSE state. */
+	__m128 MXCSR[4];
+	_fxsave(&MXCSR);
+
+	/* Set SSE state here. */
+
+	
+
+/*#if VECTOR_SUPPORT = SSE2 through 4.2 and AVX */
+	struct vec4 accumulator;
+	struct vec4 channel_data;
+	struct vec4 clear_data;
+	uint8_t vec_jump = 4;
+	uint32_t vec_cycle = frames / vec_jump;
+	vec4_zero(&clear_data);
+
+	for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+		vec4_zero(&accumulator);
+		vec4_zero(&channel_data);
+
+		/* Combine all channels into channel 0. */
+		for (size_t channel = 0; channel < channels; channel++) {
+			vec4_set(&channel_data, data[channel][frame],
+					data[channel][(frame + 1)],
+					data[channel][(frame + 2)],
+					data[channel][(frame + 3)]);
+			vec4_add(&accumulator, &channel_data, &accumulator);
+		}
+
+		/* Now compensate for the volume increase. */
+		vec4_mulf(&channel_data, &accumulator, channels_i);
+
+		/* Export the SSE data back to memory. */
+		data[0][frame] = channel_data.x;
+		data[0][(frame + 1)] = channel_data.y;
+		data[0][(frame + 2)] = channel_data.z;
+		data[0][(frame + 3)] = channel_data.w;
 	}
 
-	for (uint32_t frame = 0; frame < frames; frame++)
-		data[0][frame] *= channels_i;
-
+	/* Now silence the other channels to avoid the audio doubling. */
 	for (size_t channel = 1; channel < channels; channel++) {
-		for (uint32_t frame = 0; frame < frames; frame++)
-			data[channel][frame] = data[0][frame];
+		for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+			data[channel][frame] = clear_data.x;
+			data[channel][(frame + 1)] = clear_data.y;
+			data[channel][(frame + 2)] = clear_data.z;
+			data[channel][(frame + 3)] = clear_data.w;
+		}
 	}
+/*#elseif VECTOR_SUPPORT = AVX2
+	struct vec8 accumulator;
+	struct vec8 channel_data;
+	struct vec8 clear_data;
+	uint8_t vec_jump = 8;
+	uint32_t vec_cycle = frames / vec_jump;
+	vec4_zero(&clear_data);
+
+	for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+		vec8_zero(&accumulator);
+		vec8_zero(&channel_data);
+
+		// Combine all channels into channel 0.
+		for (size_t channel = 0; channel < channels; channel++) {
+			vec8_set(&channel_data, data[channel][frame],
+					data[channel][(frame + 1)],
+					data[channel][(frame + 2)],
+					data[channel][(frame + 3)],
+					data[channel][(frame + 4)],
+					data[channel][(frame + 5)],
+					data[channel][(frame + 6)],
+					data[channel][(frame + 7)]);
+			vec8_add(&accumulator, &channel_data, &accumulator);
+		}
+
+		// Now compensate for the volume increase.
+		vec8_mulf(&channel_data, &accumulator, channels_i);
+
+		// Export the SSE data back to memory.
+		data[0][frame] = channel_data.a;
+		data[0][(frame + 1)] = channel_data.b;
+		data[0][(frame + 2)] = channel_data.c;
+		data[0][(frame + 3)] = channel_data.d;
+		data[0][(frame + 4)] = channel_data.e;
+		data[0][(frame + 5)] = channel_data.f;
+		data[0][(frame + 6)] = channel_data.g;
+		data[0][(frame + 7)] = channel_data.h;
+	}
+
+	// Now silence the other channels to avoid the audio doubling.
+	for (size_t channel = 1; channel < channels; channel++) {
+		for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+			data[channel][frame] = clear_data.a;
+			data[channel][(frame + 1)] = clear_data.b;
+			data[channel][(frame + 2)] = clear_data.c;
+			data[channel][(frame + 3)] = clear_data.d;
+			data[channel][(frame + 4)] = clear_data.e;
+			data[channel][(frame + 5)] = clear_data.f;
+			data[channel][(frame + 6)] = clear_data.g;
+			data[channel][(frame + 7)] = clear_data.h;
+		}
+	}
+/*#elseif VECTOR_SUPPORT = AVX512
+	struct vec16 accumulator;
+	struct vec16 channel_data;
+	struct vec16 clear_data;
+	uint8_t vec_jump = 16;
+	uint32_t vec_cycle = frames / vec_jump;
+	vec4_zero(&clear_data);
+
+	for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+		vec16_zero(&accumulator);
+		vec16_zero(&channel_data);
+
+		// Combine all channels into channel 0.
+		for (size_t channel = 0; channel < channels; channel++) {
+			vec16_set(&channel_data, data[channel][frame],
+					data[channel][(frame + 1)],
+					data[channel][(frame + 2)],
+					data[channel][(frame + 3)],
+					data[channel][(frame + 4)],
+					data[channel][(frame + 5)],
+					data[channel][(frame + 6)],
+					data[channel][(frame + 7)],
+					data[channel][(frame + 8)],
+					data[channel][(frame + 9)],
+					data[channel][(frame + 10)],
+					data[channel][(frame + 11)],
+					data[channel][(frame + 12)],
+					data[channel][(frame + 13)],
+					data[channel][(frame + 14)],
+					data[channel][(frame + 15)]);
+			vec16_add(&accumulator, &channel_data, &accumulator);
+		}
+
+		// Now compensate for the volume increase.
+		vec16_mulf(&channel_data, &accumulator, channels_i);
+
+		// Export the SSE data back to memory.
+		data[0][frame] = channel_data.a;
+		data[0][(frame + 1)] = channel_data.b;
+		data[0][(frame + 2)] = channel_data.c;
+		data[0][(frame + 3)] = channel_data.d;
+		data[0][(frame + 4)] = channel_data.e;
+		data[0][(frame + 5)] = channel_data.f;
+		data[0][(frame + 6)] = channel_data.g;
+		data[0][(frame + 7)] = channel_data.h;
+		data[0][(frame + 8)] = channel_data.i;
+		data[0][(frame + 9)] = channel_data.j;
+		data[0][(frame + 10)] = channel_data.k;
+		data[0][(frame + 11)] = channel_data.l;
+		data[0][(frame + 12)] = channel_data.m;
+		data[0][(frame + 13)] = channel_data.n;
+		data[0][(frame + 14)] = channel_data.o;
+		data[0][(frame + 15)] = channel_data.p;
+	}
+
+	// Now silence the other channels to avoid the audio doubling.
+	for (size_t channel = 1; channel < channels; channel++) {
+		for (uint32_t frame = 0; frame < frames; frame + vec_jump) {
+			data[channel][frame] = clear_data.a;
+			data[channel][(frame + 1)] = clear_data.b;
+			data[channel][(frame + 2)] = clear_data.c;
+			data[channel][(frame + 3)] = clear_data.d;
+			data[channel][(frame + 4)] = clear_data.e;
+			data[channel][(frame + 5)] = clear_data.f;
+			data[channel][(frame + 6)] = clear_data.g;
+			data[channel][(frame + 7)] = clear_data.h;
+			data[channel][(frame + 8)] = clear_data.i;
+			data[channel][(frame + 9)] = clear_data.j;
+			data[channel][(frame + 10)] = clear_data.k;
+			data[channel][(frame + 11)] = clear_data.l;
+			data[channel][(frame + 12)] = clear_data.m;
+			data[channel][(frame + 13)] = clear_data.n;
+			data[channel][(frame + 14)] = clear_data.o;
+			data[channel][(frame + 15)] = clear_data.p;
+		}
+	}
+#endif*/
+
+	/* Restore SSE state. */
+	_fxrstor(&MXCSR);
 }
 
 static void process_audio_panning(struct obs_source *source, uint32_t frames,
-		float pan, enum obs_panning_type type)
+		enum obs_panning_type type)
 {
 	float **data = (float**)source->audio_data.data;
+	size_t output_channels = audio_output_get_channels(obs->audio.audio);
 
-	switch(type) {
+
+	switch (type) {
 	case OBS_PANNING_TYPE_SINE_LAW:
 		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] *
-				sinf((1.0f - pan) * (M_PI/2.0f));
-			data[1][frame] = data[1][frame] *
-				sinf(pan * (M_PI/2.0f));
+			for (size_t channel = 0; channel < output_channels; channel++) {
+				data[channel][frame] = data[channel][frame] *
+				sinf((1.0f - source->pan[channel]) * (M_PI / 2.0f));
+			}
 		}
-		break;
+	break;
 	case OBS_PANNING_TYPE_SQUARE_LAW:
 		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] * sqrtf(1.0f - pan);
-			data[1][frame] = data[1][frame] * sqrtf(pan);
+			for (size_t channel = 0; channel < output_channels; channel++) {
+			data[channel][frame] = data[channel][frame] * sqrtf(1.0f - source->pan[channel]);
+			}
 		}
-		break;
+	break;
 	case OBS_PANNING_TYPE_LINEAR:
 		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] * (1.0f - pan);
-			data[1][frame] = data[1][frame] * pan;
+			for (size_t channel = 0; channel < output_channels; channel++) {
+			data[channel][frame] = data[channel][frame] * (1.0f - source->pan[channel]);
+			}
 		}
-		break;
+	break;
 	default:
-		break;
-	}
+	break;
+		}
+	/*}
+	else {
+		switch (type) {
+		case OBS_PANNING_TYPE_SINE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] *
+					sinf((1.0f - pan) * (M_PI / 2.0f));
+				data[1][frame] = data[1][frame] *
+					sinf(pan * (M_PI / 2.0f));
+			}
+			break;
+		case OBS_PANNING_TYPE_SQUARE_LAW:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] * sqrtf(1.0f - pan);
+				data[1][frame] = data[1][frame] * sqrtf(pan);
+			}
+			break;
+		case OBS_PANNING_TYPE_LINEAR:
+			for (uint32_t frame = 0; frame < frames; frame++) {
+				data[0][frame] = data[0][frame] * (1.0f - pan);
+				data[1][frame] = data[1][frame] * pan;
+			}
+			break;
+		default:
+			break;
+		}
+	}*/
+	
 }
 
 /* resamples/remixes new audio to the designated main audio output format */
@@ -2598,13 +2811,7 @@ static void process_audio(obs_source_t *source,
 				audio->timestamp);
 	}
 
-	mono_output = audio_output_get_channels(obs->audio.audio) == 1;
-
-	if (!mono_output) {
-		process_audio_panning(source, frames,
-				obs_source_get_panning_value(source),
-				OBS_PANNING_TYPE_SINE_LAW);
-	}
+	process_audio_panning(source, frames, OBS_PANNING_TYPE_SINE_LAW);
 
 	if (!mono_output && (source->flags & OBS_SOURCE_FLAG_FORCE_MONO) != 0)
 		downmix_to_mono_planar(source, frames);
@@ -4109,16 +4316,29 @@ obs_data_t *obs_source_get_private_settings(obs_source_t *source)
 	return source->private_settings;
 }
 
-void obs_source_set_panning_value(obs_source_t *source, float pan)
+void obs_source_set_pan_value(obs_source_t *source, size_t channel,
+		float pan_amount)
 {
-	if (!obs_source_valid(source, "obs_source_set_panning_value"))
+	if (!obs_source_valid(source, "obs_source_set_pan_value"))
 		return;
 
-	source->pan = pan;
+	source->pan[channel] = pan_amount;
 }
 
-float obs_source_get_panning_value(const obs_source_t *source)
+void obs_source_set_pan_values(obs_source_t *source,
+		obs_data_array_t *pan_array)
 {
-	return obs_source_valid(source, "obs_source_get_panning_value") ?
-		source->pan : 0.5f;
+	if (!obs_source_valid(source, "obs_source_set_pan_values"))
+		return;
+	size_t channels = audio_output_get_channels(obs->audio.audio);
+	for (uint8_t channel = 0; channel < channels; channel++){
+		source->pan[channel] = pan_array[channel];
+	}
+}
+
+obs_data_array_t *obs_source_get_pan_values(const obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_get_pan_values"))
+		return;
+	return source->pan;
 }

@@ -60,7 +60,7 @@ public slots:
 
 	void volumeChanged(int percentage);
 	void downmixMonoChanged(bool checked);
-	void panningChanged(int val);
+	void panningChanged(int val, size_t channel);
 	void syncOffsetChanged(int milliseconds);
 	void monitoringTypeChanged(int index);
 	void mixer1Changed(bool checked);

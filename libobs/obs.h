@@ -820,11 +820,16 @@ EXPORT void obs_source_set_volume(obs_source_t *source, float volume);
 /** Gets the user volume for a source that has audio output */
 EXPORT float obs_source_get_volume(const obs_source_t *source);
 
-/** Sets the panning value for a source that has audio output */
-EXPORT void obs_source_set_panning_value(obs_source_t *source, float pan);
+/** Sets the panning value for a channel of a source that has audio output */
+EXPORT void obs_source_set_pan_value(obs_source_t *source,
+		size_t channel, float pan_amount);
 
-/** Gets the panning value for a source that has audio output */
-EXPORT float obs_source_get_panning_value(const obs_source_t *source);
+/** Sets the panning value for all channels of a source with audio output */
+EXPORT void obs_source_set_pan_values(obs_source_t *source,
+		obs_data_array_t *pan_array);
+
+/** Gets the panning values for a source that has audio output */
+EXPORT obs_data_array_t obs_source_get_pan_values(const obs_source_t *source);
 
 /** Sets the audio sync offset (in nanoseconds) for a source */
 EXPORT void obs_source_set_sync_offset(obs_source_t *source, int64_t offset);

@@ -1458,7 +1458,7 @@ static obs_source_t *obs_load_source_type(obs_data_t *source_data)
 	obs_data_t   *settings = obs_data_get_obj(source_data, "settings");
 	obs_data_t   *hotkeys  = obs_data_get_obj(source_data, "hotkeys");
 	double       volume;
-	double       pan;
+	double       pan[MAX_AUDIO_CHANNELS];
 	int64_t      sync;
 	uint32_t     flags;
 	uint32_t     mixers;
@@ -1474,9 +1474,10 @@ static obs_source_t *obs_load_source_type(obs_data_t *source_data)
 	volume = obs_data_get_double(source_data, "volume");
 	obs_source_set_volume(source, (float)volume);
 
-	obs_data_set_default_double(source_data, "pan", 0.5);
-	pan = obs_data_get_double(source_data, "pan");
-	obs_source_set_panning_value(source, (float)pan);
+	//size_t channels = audio_output_get_channels(obs->audio.audio);
+	obs_data_set_default_obj(source_data, "pan", source->pan);
+	source->pan = obs_source_get_pan_values(source_data);
+	obs_source_set_pan_values(source_data, pan);
 
 	sync = obs_data_get_int(source_data, "sync");
 	obs_source_set_sync_offset(source, sync);
@@ -1615,7 +1616,7 @@ obs_data_t *obs_save_source(obs_source_t *source)
 	obs_data_t *hotkey_data = source->context.hotkey_data;
 	obs_data_t *hotkeys;
 	float      volume      = obs_source_get_volume(source);
-	float      pan         = obs_source_get_panning_value(source);
+	obs_data_array_t *pan  = obs_source_get_pan_values(source);
 	uint32_t   mixers      = obs_source_get_audio_mixers(source);
 	int64_t    sync        = obs_source_get_sync_offset(source);
 	uint32_t   flags       = obs_source_get_flags(source);
@@ -1648,7 +1649,7 @@ obs_data_t *obs_save_source(obs_source_t *source)
 	obs_data_set_int   (source_data, "sync",     sync);
 	obs_data_set_int   (source_data, "flags",    flags);
 	obs_data_set_double(source_data, "volume",   volume);
-	obs_data_set_double(source_data, "pan",      pan);
+	obs_data_set_array (source_data, "pan",      pan);
 	obs_data_set_bool  (source_data, "enabled",  enabled);
 	obs_data_set_bool  (source_data, "muted",    muted);
 	obs_data_set_bool  (source_data, "push-to-mute", push_to_mute);
