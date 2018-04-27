@@ -262,12 +262,8 @@ public:
 
 	void SetMeterDecayRate(qreal q);
 
-	void SetMonitorType();
-
-	bool headphonesChecked;
-	bool monitorOnlyChecked;
+	void SetMonitorType(bool mute_checked, bool monitor_checked);
 
 public slots:
 	void SetMonitor(bool checked);
-	void SetMonitorOnly(bool checked);
 };
