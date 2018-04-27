@@ -198,6 +198,8 @@ VolControl::VolControl(OBSSource source_, bool showConfig)
 #if defined(_WIN32) || defined(__APPLE__) || HAVE_PULSEAUDIO
 	headphone->setAccessibleName(
 			QTStr("VolControl.Headphones").arg(sourceName));
+	headphone->setToolTip(
+			QTStr("VolControl.Headphones").arg(sourceName));
 
 	switch (obs_source_get_monitoring_type(source)) {
 		case OBS_MONITORING_TYPE_NONE:
