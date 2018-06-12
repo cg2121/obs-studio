@@ -366,22 +366,22 @@ void OBSBasic::VisibilityTransition(OBSSceneItem sceneItem, bool visible)
 		int cx = obs_source_get_width(source);
 		int cy = obs_source_get_height(source);
 
-		obs_transition_set(source, transition);
-
 		obs_transition_set_size(transition, cx, cy);
 		obs_transition_set_alignment(transition, OBS_ALIGN_CENTER);
 		obs_transition_set_scale_type(transition,
 				OBS_TRANSITION_SCALE_ASPECT);
 
 		if (visible) {
+			obs_transition_set(transition, NULL);
 			obs_transition_start(transition,
 					OBS_TRANSITION_MODE_AUTO, duration,
 					source);
 			obs_source_inc_showing(source);
 		} else {
+			obs_transition_set(transition, source);
 			obs_transition_start(transition,
 					OBS_TRANSITION_MODE_AUTO, duration,
-					nullptr);
+					NULL);
 			obs_source_dec_showing(source);
 		}
 	}
