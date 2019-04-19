@@ -56,7 +56,7 @@ sudo make install
 
 # build cef
 cd ~/projects
-curl -L "http://opensource.spotify.com/cefbuilds/cef_binary_73.1.12%2Bgee4b49f%2Bchromium-73.0.3683.75_linux64_minimal.tar.bz2" -o "cef.tar.bz2"
+curl -L "http://opensource.spotify.com/cefbuilds/cef_binary_${CEF_VERSION}_linux64_minimal.tar.bz2" -o "cef.tar.bz2"
 tar -xjf "cef.tar.bz2" --one-top-level=cef --strip-components=1
 cd cef && mkdir build
 cd build
