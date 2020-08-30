@@ -693,3 +693,60 @@ jobs:
         with:
           name: '${{ env.FILE_NAME }}'
           path: '*-win32.zip'
+  make-release:
+    name: 'Create and upload release'
+    runs-on: [ubuntu-latest]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    needs: [macos64]
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: 'Fetch Git Tags'
+        shell: bash
+        run: |
+          git fetch --prune --unshallow
+          echo ::set-env name=OBS_GIT_BRANCH::$(git rev-parse --abbrev-ref HEAD)
+          echo ::set-env name=OBS_GIT_HASH::$(git rev-parse --short HEAD)
+          echo ::set-env name=OBS_GIT_TAG::$(git describe --tags --abbrev=0)
+      - name: 'Determing if release candidate'
+        if: contains(env.OBS_GIT_TAG, 'rc')
+        shell: bash
+        run: |
+          echo '::set-env name=IS_RC::true'
+      - name: 'Determing if release candidate'
+        if: "!contains(env.OBS_GIT_TAG, 'rc')"
+        shell: bash
+        run: |
+          echo '::set-env name=IS_RC::false'
+      - name: 'Generate Filename'
+        shell: bash
+        run: |
+          FILE_DATE=$(date +%Y-%m-%d)
+          FILE_NAME=$FILE_DATE-${{ env.OBS_GIT_HASH }}-${{ env.OBS_GIT_TAG }}
+          echo "::set-env name=FILE_NAME::${FILE_NAME}"
+      - name: 'Create Release'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.OBS_GIT_TAG }}
+          release_name: OBS Studio ${{ env.OBS_GIT_TAG }}
+          draft: false
+          prerelease: ${{ env.IS_RC }}
+      - name: 'Download macos64 artifact'
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.FILE_NAME }}-rel-macOS.dmg
+          path: ./
+      - name: 'Upload macos64 to release'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.FILE_NAME }}-rel-macOS.dmg
+          asset_name: obs-studio-mac-${{ env.OBS_GIT_TAG }}.dmg
+          asset_content_type: application/octet-stream
