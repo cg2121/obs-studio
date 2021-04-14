@@ -314,6 +314,11 @@ static void OBSEvent(enum obs_frontend_event event, void *)
 
 bool obs_module_load(void)
 {
+	obs_module_t *decklinkModule = obs_get_module("decklink");
+
+	if (!decklinkModule)
+		return false;
+
 	addOutputUI();
 
 	obs_frontend_add_event_callback(OBSEvent, nullptr);
