@@ -711,13 +711,8 @@ jobs:
           echo ::set-env name=OBS_GIT_HASH::$(git rev-parse --short HEAD)
           echo ::set-env name=OBS_GIT_TAG::$(git describe --tags --abbrev=0)
       - name: 'Determing if release candidate'
-        if: contains(env.OBS_GIT_TAG, 'rc')
         env:
-          IS_RC: true
-      - name: 'Determing if release candidate'
-        if: "!contains(env.OBS_GIT_TAG, 'rc')"
-        env:
-          IS_RC: false
+          IS_RC: ${{ contains(env.OBS_GIT_TAG, 'rc') }}
       - name: 'Generate Filename'
         shell: bash
         run: |
