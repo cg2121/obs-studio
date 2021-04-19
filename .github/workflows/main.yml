@@ -712,14 +712,12 @@ jobs:
           echo ::set-env name=OBS_GIT_TAG::$(git describe --tags --abbrev=0)
       - name: 'Determing if release candidate'
         if: contains(env.OBS_GIT_TAG, 'rc')
-        shell: bash
-        run: |
-          echo '::set-env name=IS_RC::true'
+        env:
+          IS_RC: true
       - name: 'Determing if release candidate'
         if: "!contains(env.OBS_GIT_TAG, 'rc')"
-        shell: bash
-        run: |
-          echo '::set-env name=IS_RC::false'
+        env:
+          IS_RC: false
       - name: 'Generate Filename'
         shell: bash
         run: |
