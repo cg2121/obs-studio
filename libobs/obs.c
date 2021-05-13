@@ -2374,6 +2374,22 @@ void obs_remove_raw_video_callback(void (*callback)(void *param,
 	stop_raw_video(video->video, callback, param);
 }
 
+void obs_add_raw_audio_callback(size_t track,
+				const struct audio_convert_info *conversion,
+				audio_output_callback_t callback, void *param)
+{
+	struct obs_core_audio *audio = &obs->audio;
+	audio_output_connect(audio, track, conversion, callback, param);
+}
+
+void obs_remove_raw_audio_callback(size_t track,
+				   audio_output_callback_t callback,
+				   void *param)
+{
+	struct obs_core_audio *audio = &obs->audio;
+	audio_output_disconnect(audio, track, callback, param);
+}
+
 void obs_apply_private_data(obs_data_t *settings)
 {
 	if (!settings)
