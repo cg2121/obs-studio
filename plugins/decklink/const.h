@@ -14,6 +14,7 @@
 #define KEYER "keyer"
 #define SWAP "swap"
 #define ALLOW_10_BIT "allow_10_bit"
+#define MUTE_AUDIO obs_module_text("mute_audio")
 
 #define TEXT_DEVICE obs_module_text("Device")
 #define TEXT_VIDEO_CONNECTION obs_module_text("VideoConnection")
@@ -41,3 +42,4 @@
 #define TEXT_SWAP obs_module_text("SwapFC-LFE")
 #define TEXT_SWAP_TOOLTIP obs_module_text("SwapFC-LFE.Tooltip")
 #define TEXT_ALLOW_10_BIT obs_module_text("Allow10Bit")
+#define TEXT_MUTE_AUDIO obs_module_text("MuteAudio")

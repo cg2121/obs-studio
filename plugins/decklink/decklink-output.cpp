@@ -35,6 +35,7 @@ static void decklink_output_update(void *data, obs_data_t *settings)
 	decklink->deviceHash = obs_data_get_string(settings, DEVICE_HASH);
 	decklink->modeID = obs_data_get_int(settings, MODE_ID);
 	decklink->keyerMode = (int)obs_data_get_int(settings, KEYER);
+	decklink->mute = obs_data_get_bool(settings, MUTE_AUDIO);
 }
 
 static bool decklink_output_start(void *data)
@@ -150,9 +151,13 @@ static bool prepare_audio(DeckLinkOutput *decklink,
 		cutoff = util_mul_div64(cutoff, decklink->audio_samplerate,
 					1000000000ULL);
 
-		for (size_t i = 0; i < decklink->audio_planes; i++)
-			output->data[i] +=
-				decklink->audio_size * (uint32_t)cutoff;
+		if (decklink->mute) {
+			memset(output->data[0], 0, decklink->audio_size);
+		} else {
+			for (size_t i = 0; i < decklink->audio_planes; i++)
+				output->data[i] +=
+					decklink->audio_size * (uint32_t)cutoff;
+		}
 
 		output->frames -= (uint32_t)cutoff;
 	}
@@ -264,6 +269,8 @@ static obs_properties_t *decklink_output_properties(void *unused)
 
 	obs_properties_add_list(props, KEYER, TEXT_ENABLE_KEYER,
 				OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_properties_add_bool(props, MUTE_AUDIO, TEXT_MUTE_AUDIO);
 
 	return props;
 }
