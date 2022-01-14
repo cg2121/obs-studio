@@ -89,6 +89,9 @@ struct obs_scene_item {
 	/* would do **prev_next, but not really great for reordering */
 	struct obs_scene_item *prev;
 	struct obs_scene_item *next;
+
+	obs_hotkey_id show_hold;
+	obs_hotkey_id hide_hold;
 };
 
 struct obs_scene {
