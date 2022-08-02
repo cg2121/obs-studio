@@ -526,13 +526,13 @@ jobs:
 
       - name: Rename flatpak
         run: |
-          mv ${{ github.workspace }}/**/*.flatpak ${{ github.workspace }}/obs-studio-${{ steps.metadata.outputs.version }}-linux.flatpak
+          mv ${{ github.workspace }}/**/*.flatpak ${{ github.workspace }}/**/obs-studio-${{ steps.metadata.outputs.version }}-linux.flatpak
 
       - name: Generate Checksums
         run: |
           shopt -s extglob
           echo "### Checksums" > ${{ github.workspace }}/CHECKSUMS.txt
-          for file in ${{ github.workspace }}/@(*.dmg|*.deb|*.flatpak); do
+          for file in ${{ github.workspace }}/**/@(*.dmg|*.deb|*.flatpak); do
             echo "    ${file##*/}: $(sha256sum "${file}" | cut -d " " -f 1)" >> ${{ github.workspace }}/CHECKSUMS.txt
           done
 
