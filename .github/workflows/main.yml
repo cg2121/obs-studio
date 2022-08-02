@@ -526,7 +526,8 @@ jobs:
 
       - name: Rename flatpak
         run: |
-          mv ${{ github.workspace }}/**/*.flatpak obs-studio-${{ steps.metadata.outputs.version }}-linux.flatpak
+          mkdir ${{ github.workspace }}/flatpak
+          mv ${{ github.workspace }}/**/*.flatpak ${{ github.workspace }}/flatpak/obs-studio-${{ steps.metadata.outputs.version }}-linux.flatpak
 
       - name: Generate Checksums
         run: |
