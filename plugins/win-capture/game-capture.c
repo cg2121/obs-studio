@@ -2586,7 +2586,7 @@ static bool game_capture_audio_render(void *data, uint64_t *ts_out,
 struct obs_source_info game_capture_info = {
 	.id = "game_capture",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW |
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_AUDIO | OBS_SOURCE_CUSTOM_DRAW |
 			OBS_SOURCE_DO_NOT_DUPLICATE | OBS_SOURCE_SRGB |
 			OBS_SOURCE_COMPOSITE,
 	.get_name = game_capture_name,
