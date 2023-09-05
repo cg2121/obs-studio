@@ -25,18 +25,16 @@ void setup_audio_source(obs_source_t *parent, obs_source_t **child,
 
 			// Restore saved source if possible
 			if (audio_data) {
-				*child = obs_load_source(audio_data);
+				*child = obs_load_private_source(audio_data);
 				obs_source_set_name(*child, name.array);
 
 				obs_data_release(audio_data);
 			} else {
-				*child = obs_source_create(
+				*child = obs_source_create_private(
 					"wasapi_process_output_capture",
-					name.array, NULL, NULL);
+					name.array, NULL);
 			}
 
-			// Make sure source is active and hidden (i.e. not automatically saved)
-			obs_source_set_hidden(*child, true);
 			obs_source_add_active_child(parent, *child);
 
 			dstr_free(&name);
